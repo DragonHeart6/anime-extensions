@@ -33,16 +33,9 @@ class AnimeSaturn :
 
     override val supportsLatest = true
 
-    private val preferences by getPreferencesLazy {
-        val currentDomain = getString(PREF_DOMAIN, DOMAIN_DEFAULT)!!
-        if (currentDomain !in DOMAIN_VALUES) {
-            edit()
-                .putString(PREF_DOMAIN, DOMAIN_DEFAULT)
-                .apply()
-        }
-    }
+    override val baseUrl = "https://animemars.com"
 
-    override val baseUrl by preferences.delegate(PREF_DOMAIN, DOMAIN_DEFAULT)
+    private val preferences by getPreferencesLazy { }
 
     override fun popularAnimeSelector(): String = "a.group[href]:not(.flex)"
 
@@ -219,54 +212,52 @@ class AnimeSaturn :
         Genre("Yuri"),
     )
 
-    internal class Year(val id: String) : AnimeFilter.CheckBox(id)
-    private class YearList(years: List<Year>) : AnimeFilter.Group<Year>("Anno di Uscita", years)
-    private fun getYears(): List<Year> {
-        val currentYear = Calendar.getInstance().get(Calendar.YEAR)
-        return (1967..currentYear).map { Year(it.toString()) }
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        addListPreference(
+            screen,
+            key = PREF_QUALITY,
+            entries = QUALITY_ENTRIES,
+            entryValues = QUALITY_VALUES,
+            title = "Qualità video preferita",
+            summary = "%s",
+            defaultValue = QUALITY_DEFAULT,
+        )
     }
 
-    internal class State(val id: String, name: String) : AnimeFilter.CheckBox(name)
-    private class StateList(states: List<State>) : AnimeFilter.Group<State>("Stato", states)
-    private fun getStates() = listOf(
-        State("0", "In corso"),
-        State("1", "Finito"),
-        State("2", "Non rilasciato"),
-        State("3", "Droppato"),
-    )
-
-    internal class Lang(val id: String, name: String) : AnimeFilter.CheckBox(name)
-    private class LangList(langs: List<Lang>) : AnimeFilter.Group<Lang>("Lingua", langs)
-    private fun getLangs() = listOf(
-        Lang("jp", "Subbato"),
-        Lang("it", "Doppiato"),
-    )
-
-    override fun getFilterList(): AnimeFilterList = AnimeFilterList(
-        GenreList(getGenres()),
-        YearList(getYears()),
-        StateList(getStates()),
-        LangList(getLangs()),
-    )
-
     private fun getSearchParameters(filters: AnimeFilterList): String {
-        var totalstring = ""
-        var variantgenre = 0
-        var variantstate = 0
-        var variantyear = 0
+        var parameters = ""
         filters.forEach { filter ->
             when (filter) {
-                is GenreList -> { // ---Genre
+                is GenreList -> {
                     filter.state.forEach { genre ->
                         if (genre.state) {
-                            totalstring = totalstring + "&categories%5B" + variantgenre.toString() + "%5D=" + genre.id
-                            variantgenre++
+                            parameters += "&categories[]=${genre.id}"
                         }
                     }
                 }
+                else -> {}
+            }
+        }
+        return parameters
+    }
 
-                is YearList -> { // ---Year
-                    filter.state.forEach { year ->
+    @Serializable
+    data class PlaylistModel(
+        val d: String,
+    )
+
+    companion object {
+        private const val PREF_QUALITY = "preferred_quality"
+        private const val QUALITY_DEFAULT = "1080p"
+        private val QUALITY_ENTRIES = arrayOf("1080p", "720p", "480p", "360p")
+        private val QUALITY_VALUES = QUALITY_ENTRIES
+
+        private const val PREF_DOMAIN = "preferred_domain"
+        private const val DOMAIN_DEFAULT = "https://animemars.com"
+        private val DOMAIN_VALUES = arrayOf(DOMAIN_DEFAULT)
+    }
+}
+          filter.state.forEach { year ->
                         if (year.state) {
                             totalstring = totalstring + "&years%5B" + variantyear.toString() + "%5D=" + year.id
                             variantyear++
