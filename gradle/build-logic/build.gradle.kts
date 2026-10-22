@@ -63,3 +63,5 @@ gradlePlugin {
         }
     }
 }
+
+val repoOwner = "DragonHeart6"
